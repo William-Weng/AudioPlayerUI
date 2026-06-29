@@ -158,6 +158,8 @@ private extension ContentView {
         
         let tracks = URL.documentsDirectory.searchAudios().sorted { $1.lastPathComponent > $0.lastPathComponent }
         
+        print(URL.documentsDirectory)
+        
         viewModel.load(tracks: tracks)
         currentVolume = 0.1
     }
