@@ -1,6 +1,6 @@
 //
 //  AudioPlayerApp.swift
-//  AudioPlayer
+//  AudioPlayerUI
 //
 //  Created by William.Weng on 2026/6/26.
 //
@@ -9,6 +9,7 @@
 //  UISupportsDocumentBrowser = YES（讓 App 的 Documents 目錄可在 Files App 的「On My iPhone」中顯示）
 
 import SwiftUI
+import MediaPlayer
 
 struct ContentView: View {
     
@@ -17,7 +18,12 @@ struct ContentView: View {
     
     /// 播放器畫面狀態與播放控制邏輯
     @State private var viewModel = PlayerViewModel()
-        
+    
+    /// 取得系統總音量
+    @State private var systemVolume: Float = AVAudioSession.sharedInstance().outputVolume
+    
+    private let systemVolumeController = SystemVolumeController()
+    
     var body: some View {
         
         NavigationStack {
@@ -33,6 +39,7 @@ struct ContentView: View {
                 }
                 .listStyle(.plain)
                 
+                systemVolumeSliderView
                 volumeSliderView
                 trackView
 
@@ -72,6 +79,23 @@ private extension ContentView {
             Slider(value: $currentVolume, in: 0...1)
                 .onChange(of: currentVolume) { _, newValue in
                     viewModel.volume(newValue)
+                }
+            
+            Image(systemName: "speaker.wave.3.fill")
+                .foregroundStyle(.secondary)
+        }
+    }
+    
+    /// 系統音量滑桿，拖動時即時更新總音量
+    var systemVolumeSliderView: some View {
+        
+        HStack(spacing: 12) {
+            Image(systemName: "music.note")
+                .foregroundStyle(.secondary)
+            
+            Slider(value: $systemVolume, in: 0...1)
+                .onChange(of: systemVolume) { _, newValue in
+                    systemVolumeController.setVolume(newValue)
                 }
             
             Image(systemName: "speaker.wave.3.fill")
@@ -194,3 +218,4 @@ private extension ContentView {
         }
     }
 }
+
