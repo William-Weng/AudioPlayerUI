@@ -30,6 +30,7 @@ final class PlayerViewModel {
     
     /// 載入播放清單並初始化播放器狀態。
     /// - Parameter tracks: 要載入的音軌 URL 清單
+    @MainActor
     func load(tracks: [URL]) {
         
         self.tracks = tracks
@@ -46,9 +47,26 @@ final class PlayerViewModel {
         player.volume = volume
     }
     
+    /// 開始播放目前選取的音軌 => 若目前只是暫停，則直接恢復播放，不重新載入音軌
+    func play() async {
+        
+        if isPause { resume(); return }
+        
+        guard let track = tracks[safe: currentTrackIndex] else { return }
+        await player.play(with: [track], loop: false)
+    }
+    
     /// 切換播放或暫停狀態 => 若目前正在播放則暫停，否則開始播放或從暫停狀態恢復
     func togglePlay() {
         Task { isPlaying ? pause() : await play() }
+    }
+    
+    /// 播放器停止播放
+    func stop() {
+        player.stop()
+        isPlaying = false
+        isPause = false
+        isFinished = true
     }
     
     /// 暫停目前播放內容，並同步更新狀態旗標
@@ -96,6 +114,10 @@ final class PlayerViewModel {
         
         return try trackHint(track)
     }
+    
+    deinit {
+        print("\(Self.self) deinit")
+    }
 }
 
 // MARK: - WWNormalizeAudioPlayer.Delegate
@@ -126,16 +148,8 @@ extension PlayerViewModel: WWNormalizeAudioPlayer.Delegate {
 // MARK: - 私有API
 private extension PlayerViewModel {
     
-    /// 開始播放目前選取的音軌 => 若目前只是暫停，則直接恢復播放，不重新載入音軌
-    func play() async {
-        
-        if isPause { resume(); return }
-        
-        guard let track = tracks[safe: currentTrackIndex] else { return }
-        await player.play(with: [track], loop: false)
-    }
-    
     /// 從暫停狀態恢復播放
+    @MainActor
     func resume() {
         player.resume()
         isPlaying = true

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		818D2F812FEE5DF100B38396 /* WWNormalizeAudioPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = 818D2F802FEE5DF100B38396 /* WWNormalizeAudioPlayer */; };
+		8157A6A42FF35BA60028D27C /* WWNormalizeAudioPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = 8157A6A32FF35BA60028D27C /* WWNormalizeAudioPlayer */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,7 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				818D2F812FEE5DF100B38396 /* WWNormalizeAudioPlayer in Frameworks */,
+				8157A6A42FF35BA60028D27C /* WWNormalizeAudioPlayer in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,7 +83,7 @@
 			);
 			name = AudioPlayerUI;
 			packageProductDependencies = (
-				818D2F802FEE5DF100B38396 /* WWNormalizeAudioPlayer */,
+				8157A6A32FF35BA60028D27C /* WWNormalizeAudioPlayer */,
 			);
 			productName = AudioPlayer;
 			productReference = 818D2F6D2FEE5DB300B38396 /* AudioPlayerUI.app */;
@@ -114,7 +114,7 @@
 			mainGroup = 818D2F642FEE5DB300B38396;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				818D2F7F2FEE5DF100B38396 /* XCRemoteSwiftPackageReference "WWNormalizeAudioPlayer" */,
+				8157A6A22FF35BA60028D27C /* XCRemoteSwiftPackageReference "WWNormalizeAudioPlayer" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 818D2F6E2FEE5DB300B38396 /* Products */;
@@ -274,7 +274,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260226;
+				CURRENT_PROJECT_VERSION = 20260230;
 				DEVELOPMENT_TEAM = 4Q5CYDAG3B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -314,7 +314,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 20260226;
+				CURRENT_PROJECT_VERSION = 20260230;
 				DEVELOPMENT_TEAM = 4Q5CYDAG3B;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -372,7 +372,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		818D2F7F2FEE5DF100B38396 /* XCRemoteSwiftPackageReference "WWNormalizeAudioPlayer" */ = {
+		8157A6A22FF35BA60028D27C /* XCRemoteSwiftPackageReference "WWNormalizeAudioPlayer" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/William-Weng/WWNormalizeAudioPlayer";
 			requirement = {
@@ -383,9 +383,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		818D2F802FEE5DF100B38396 /* WWNormalizeAudioPlayer */ = {
+		8157A6A32FF35BA60028D27C /* WWNormalizeAudioPlayer */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 818D2F7F2FEE5DF100B38396 /* XCRemoteSwiftPackageReference "WWNormalizeAudioPlayer" */;
+			package = 8157A6A22FF35BA60028D27C /* XCRemoteSwiftPackageReference "WWNormalizeAudioPlayer" */;
 			productName = WWNormalizeAudioPlayer;
 		};
 /* End XCSwiftPackageProductDependency section */

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - JSONSerialization (subscript function)
 extension Collection {
@@ -37,6 +38,27 @@ extension TimeInterval {
         formatter.zeroFormattingBehavior = behavior
         
         return formatter.string(from: self)
+    }
+}
+
+// MARK: - Color
+extension Color {
+    
+    /// 16進制顏色轉換
+    ///   - colorSpace: 色彩空間
+    ///   - hex: 16進制顏色色碼 (#0d1117)
+    init(colorSpace: Color.RGBColorSpace = .sRGB, hex: String) {
+        
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var rgb: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&rgb)
+
+        let red = Double((rgb >> 16) & 0xFF) / 255.0
+        let green = Double((rgb >> 8) & 0xFF) / 255.0
+        let blue = Double(rgb & 0xFF) / 255.0
+        let opacity = Double(1.0)
+        
+        self.init(colorSpace, red: red, green: green, blue: blue, opacity: opacity)
     }
 }
 

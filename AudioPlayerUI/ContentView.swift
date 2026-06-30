@@ -38,18 +38,24 @@ struct ContentView: View {
                     }
                 }
                 .listStyle(.plain)
-                
-                systemVolumeSliderView
-                volumeSliderView
-                trackView
-
-                HStack(spacing: 32) {
-                    actionButtonView
-                }
             }
-            .padding()
             .navigationTitle("播放器")
             .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom, content: {
+                
+                VStack {
+                    
+                    systemVolumeSliderView
+                    volumeSliderView
+                    trackView
+                    
+                    HStack(spacing: 32) {
+                        actionButtonView
+                    }
+                }
+                .padding()
+                .background(Color.init(hex: "#F3F4F6"))
+            })
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     leadingToolbarItemView
@@ -213,8 +219,16 @@ private extension ContentView {
         }
         .contentShape(Rectangle())
         .onTapGesture {
+            
             viewModel.currentTrackIndex = index
             viewModel.currentTitle = try? viewModel.trackHint(with: index)
+                        
+            if viewModel.isFinished { return }
+            
+            let isPlaying = viewModel.isPlaying
+            viewModel.stop()
+            
+            if isPlaying { Task { await viewModel.play() }}
         }
     }
 }
