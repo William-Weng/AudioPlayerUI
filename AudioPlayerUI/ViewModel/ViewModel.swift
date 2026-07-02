@@ -53,7 +53,7 @@ final class PlayerViewModel {
         if isPause { resume(); return }
         
         guard let track = tracks[safe: currentTrackIndex] else { return }
-        await player.play(with: [track], loop: false)
+        await player.play(with: [track], targetDB: -2.0, loop: false)
     }
     
     /// 切換播放或暫停狀態 => 若目前正在播放則暫停，否則開始播放或從暫停狀態恢復
