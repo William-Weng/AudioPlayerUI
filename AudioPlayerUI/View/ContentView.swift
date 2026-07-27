@@ -217,6 +217,7 @@ private extension ContentView {
         
         viewModel.prepare(tracks: tracks ?? [])
         currentVolume = 0.1
+        resetTitle()
     }
     
     /// 將目前的音軌清單排序
