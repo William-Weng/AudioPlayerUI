@@ -10,19 +10,21 @@
 
 import SwiftUI
 import MediaPlayer
+import WWNormalizeAudioPlayer
+import WWFileService
 
+/// 主畫面
 struct ContentView: View {
     
-    @State var currentVolume: Float = 0.0   // 目前音量，範圍 0 ~ 1，會同步更新播放器音量
-    @State var isShuffle: Bool = false      // 是否啟用隨機播放 => 開啟時會直接打亂目前清單順序；關閉時則恢復檔名排序
+    @State private var currentVolume: Float = 0.0                                                           // 目前播放器音量，範圍為 0.0 到 1.0 (此值變更時，會同步更新播放器的輸出音量)
+    @State private var isShuffle: Bool = false                                                              // 是否啟用隨機播放 (開啟時會直接打亂目前清單順序；關閉時則恢復檔名排序)
+    @State private var viewModel = PlayerViewModel()                                                        // 播放器畫面狀態與播放控制邏輯
+    @State private var systemVolume: Float = AVAudioSession.sharedInstance().outputVolume                   // 目前系統輸出音量 (範圍為 0.0 到 1.0)
+    @State private var currentTitle: String = ""                                                            // 目前顯示的音軌標題
+    @State private var loopButtonSetting = ButtonSetting(iconName: "", title: "", color: .clear)            // 循環播放按鈕的顯示設定
+    @State private var autoNextTrackButtonSetting = ButtonSetting(iconName: "", title: "", color: .clear)   // 自動播放下一首按鈕的顯示設定
     
-    /// 播放器畫面狀態與播放控制邏輯
-    @State private var viewModel = PlayerViewModel()
-    
-    /// 取得系統總音量
-    @State private var systemVolume: Float = AVAudioSession.sharedInstance().outputVolume
-    
-    private let systemVolumeController = SystemVolumeController()
+    private let systemVolumeController = SystemVolumeController()                                           // 用來控制系統音量的控制器
     
     var body: some View {
         
@@ -42,9 +44,7 @@ struct ContentView: View {
             .navigationTitle("播放器")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom, content: {
-                
                 VStack {
-                    
                     systemVolumeSliderView
                     volumeSliderView
                     trackView
@@ -65,8 +65,11 @@ struct ContentView: View {
                 }
             }.task {
                 loadInitialSettings()
-            }.onChange(of: isShuffle) { _, isShuffle in
-                updateTrackOrder(isShuffle: isShuffle)
+                functionButtonSetting(state: viewModel.functionState)
+            }.onChange(of: isShuffle) { _, newValue in
+                sortTracks(isShuffle: newValue)
+            }.onChange(of: viewModel.functionState) { _, newValue in
+                functionButtonSetting(state: newValue)
             }
         }
     }
@@ -112,7 +115,7 @@ private extension ContentView {
     /// 顯示目前播放曲名；尚未選取時顯示預設文字
     var trackView: some View {
         
-        if let currentTitle = viewModel.currentTitle, !currentTitle.isEmpty {
+        if !currentTitle.isEmpty {
             Text(currentTitle)
                 .font(.title3)
                 .lineLimit(1)
@@ -133,30 +136,14 @@ private extension ContentView {
                 .foregroundStyle(isShuffle ? .red : Color(.systemGray3))
         }
         .accessibilityLabel("隨機播放")
-        .accessibilityValue(isShuffle ? "已開啟" : "已關閉")
+        .accessibilityValue(isShuffle ? "隨機播放已開啟" : "隨機播放已關閉")
     }
-    
+
     /// 右上角工具列按鈕群：循環播放與連續播放
     @ViewBuilder
     var trailingToolbarItemView: some View {
-        
-        Button {
-            viewModel.isLoop.toggle()
-        } label: {
-            Image(systemName: viewModel.isLoop ? "repeat.1" : "repeat")
-                .foregroundStyle(viewModel.isLoop ? .red : Color(.systemGray3))
-        }
-        .accessibilityLabel("循環播放")
-        .accessibilityValue(viewModel.isLoop ? "已開啟" : "已關閉")
-        
-        Button {
-            viewModel.isAutoPlayNextTrack.toggle()
-        } label: {
-            Image(systemName: viewModel.isAutoPlayNextTrack ? "play.square.stack.fill" : "play.square.stack")
-                .foregroundStyle(viewModel.isAutoPlayNextTrack ? .red : Color(.systemGray3))
-        }
-        .accessibilityLabel("連續播放")
-        .accessibilityValue(viewModel.isAutoPlayNextTrack ? "已開啟" : "已關閉")
+        loopItemButton
+        autoNextTrackButton
     }
     
     /// 播放控制按鈕群：上一首、播放/暫停、下一首
@@ -169,7 +156,7 @@ private extension ContentView {
         }.disabled(!viewModel.hasPrevious)
         
         Button(action: viewModel.togglePlay) {
-            Image(systemName: viewModel.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+            Image(systemName: viewModel.playerState == .playing ? "stop.circle.fill" : "play.circle.fill")
                 .font(.system(size: 64))
         }
         
@@ -177,6 +164,46 @@ private extension ContentView {
             Image(systemName: "forward.fill")
                 .font(.system(size: 32))
         }.disabled(!viewModel.hasNext)
+    }
+    
+    /// 循環播放按鈕
+    ///
+    /// 點擊後會依照目前的功能狀態切換循環播放相關設定，並同步更新按鈕圖示、顏色與輔助功能顯示內容
+    var loopItemButton: some View {
+                
+        Button {
+            switch viewModel.functionState {
+            case .loop: viewModel.functionState = .none
+            case .loopAndAutoNextTrack: viewModel.functionState = .autoNextTrack
+            case .none: viewModel.functionState = .loop
+            case .autoNextTrack: viewModel.functionState = .loopAndAutoNextTrack
+            }
+        } label: {
+            Image(systemName: loopButtonSetting.iconName)
+                .foregroundStyle(loopButtonSetting.color)
+        }
+        .accessibilityLabel("循環播放")
+        .accessibilityValue(loopButtonSetting.title)
+    }
+    
+    /// 連續播放按鈕
+    ///
+    /// 點擊後會依照目前的功能狀態切換自動播放下一首相關設定，並同步更新按鈕圖示、顏色與輔助功能顯示內容
+    var autoNextTrackButton: some View {
+        
+        Button {
+            switch viewModel.functionState {
+            case .autoNextTrack: viewModel.functionState = .none
+            case .loopAndAutoNextTrack: viewModel.functionState = .loop
+            case .none: viewModel.functionState = .autoNextTrack
+            case .loop: viewModel.functionState = .loopAndAutoNextTrack
+            }
+        } label: {
+            Image(systemName: autoNextTrackButtonSetting.iconName)
+                .foregroundStyle(autoNextTrackButtonSetting.color)
+        }
+        .accessibilityLabel("連續播放")
+        .accessibilityValue(autoNextTrackButtonSetting.title)
     }
 }
 
@@ -186,18 +213,55 @@ private extension ContentView {
     /// 初始化播放器畫面設定 => 讀取文件目錄中的音訊檔，依檔名排序後載入，並設定預設音量
     func loadInitialSettings() {
         
-        let tracks = URL.documentsDirectory.searchAudios().sorted { $1.lastPathComponent > $0.lastPathComponent }
+        let tracks = try? WWFileService.allFileItems(at: .documentsDirectory, skipsHiddenFiles: true).compactMap(\.url)
         
-        print(URL.documentsDirectory)
-        
-        viewModel.load(tracks: tracks)
+        viewModel.prepare(tracks: tracks ?? [])
         currentVolume = 0.1
     }
     
-    /// 依照是否啟用隨機播放來更新清單順序
-    /// - Parameter isShuffle: `true` 時打亂目前播放清單；`false` 時恢復為檔名排序
-    func updateTrackOrder(isShuffle: Bool) {
-        isShuffle ? viewModel.tracks.shuffle() : viewModel.tracks.sort { $1.lastPathComponent > $0.lastPathComponent }
+    /// 將目前的音軌清單排序
+    ///
+    /// 當 `isShuffle` 為 `true` 時，會隨機打亂音軌順序
+    /// 否則會依照檔名的本地化標準順序進行排序
+    /// 排序完成後，會將目前音軌索引重設為第一筆，並同步更新標題
+    func sortTracks(isShuffle: Bool) {
+        
+        defer {
+            viewModel.refreshTracks()
+            resetTitle()
+        }
+        
+        if isShuffle { viewModel.tracks.shuffle(); return }
+        
+        viewModel.tracks.sort {
+            $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending
+        }
+    }
+    
+    /// 根據目前音軌索引重新設定標題
+    func resetTitle() {
+        let hint = viewModel.trackHint(with: viewModel.currentTrackIndex)
+        currentTitle = hint ?? ""
+    }
+    
+    /// 根據功能鍵狀態設定外觀
+    /// - Parameter state: 功能鍵狀態
+    func functionButtonSetting(state: FunctionState) {
+        
+        switch state {
+        case .none:
+            loopButtonSetting = .init(iconName: "repeat", title: "循環播放已關閉", color: Color(.systemGray3))
+            autoNextTrackButtonSetting = .init(iconName: "play.square.stack", title: "連續播放已關閉", color: Color(.systemGray3))
+        case .loop:
+            loopButtonSetting = .init(iconName: "repeat.1", title: "循環播放已開啟", color: .red)
+            autoNextTrackButtonSetting = .init(iconName: "play.square.stack", title: "連續播放已關閉", color: Color(.systemGray3))
+        case .autoNextTrack:
+            loopButtonSetting = .init(iconName: "repeat", title: "循環播放已關閉", color: Color(.systemGray3))
+            autoNextTrackButtonSetting = .init(iconName: "play.square.stack.fill", title: "連續播放已開啟", color: .red)
+        case .loopAndAutoNextTrack:
+            loopButtonSetting = .init(iconName: "repeat.1", title: "循環播放已開啟", color: .red)
+            autoNextTrackButtonSetting = .init(iconName: "play.square.stack.fill", title: "連續播放已開啟", color: .red)
+        }
     }
     
     /// 建立單一音軌列
@@ -207,7 +271,7 @@ private extension ContentView {
         
         HStack {
             
-            Text((try? viewModel.trackHint(with: index)) ?? "")
+            Text((viewModel.trackHint(with: index)) ?? "")
                 .foregroundColor(viewModel.currentTrackIndex == index ? .blue : .primary)
             
             Spacer()
@@ -219,16 +283,10 @@ private extension ContentView {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            
+            let hint = viewModel.trackHint(with: index)
+            currentTitle = hint ?? ""
             viewModel.currentTrackIndex = index
-            viewModel.currentTitle = try? viewModel.trackHint(with: index)
-                        
-            if viewModel.isFinished { return }
-            
-            let isPlaying = viewModel.isPlaying
             viewModel.stop()
-            
-            if isPlaying { Task { await viewModel.play() }}
         }
     }
 }

@@ -1,13 +1,22 @@
 {
-  "originHash" : "435b6de1842ebee35a5dc39db9ab903fc18a01c8acc31e17e0dde6592e8281ee",
+  "originHash" : "97c2dc2d1c48167782543dac423b33ee056555ff29ce5867e6698e6e252301a3",
   "pins" : [
+    {
+      "identity" : "wwfileservice",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/William-Weng/WWFileService",
+      "state" : {
+        "revision" : "8bde27fb0696968b9220737ec9edd36a151e7812",
+        "version" : "1.2.3"
+      }
+    },
     {
       "identity" : "wwnormalizeaudioplayer",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/William-Weng/WWNormalizeAudioPlayer",
       "state" : {
-        "revision" : "a858157e14561207472abc4b916f91918f158b21",
-        "version" : "1.5.5"
+        "revision" : "11944e25e883b639c6a123118adca7947b63c2a3",
+        "version" : "1.6.0"
       }
     }
   ],

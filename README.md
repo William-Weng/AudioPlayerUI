@@ -1,7 +1,7 @@
 # AudioPlayerUI
 
 ![SwiftUI](https://img.shields.io/badge/SwiftUI-524520?logo=swift)
-[![Swift-5.7](https://img.shields.io/badge/Swift-5.7-orange.svg?style=flat)](https://developer.apple.com/swift/)
+[![Swift-5.10](https://img.shields.io/badge/Swift-5.10-orange.svg?style=flat)](https://developer.apple.com/swift/)
 [![iOS-17.0](https://img.shields.io/badge/iOS-17.0-pink.svg?style=flat)](https://developer.apple.com/swift/)
 ![TAG](https://img.shields.io/github/v/tag/William-Weng/AudioPlayerUI)
 [![Swift Package Manager-SUCCESS](https://img.shields.io/badge/Swift_Package_Manager-SUCCESS-blue.svg?style=flat)](https://developer.apple.com/swift/)

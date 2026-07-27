@@ -9,35 +9,38 @@ import SwiftUI
 import WWNormalizeAudioPlayer
 internal import AVFAudio
 
-/// 播放器畫面的狀態與控制邏輯 => 負責管理播放狀態、曲目切換，以及播放完成後的後續行為
+/// 播放器畫面的狀態與控制邏輯 (負責管理播放狀態、曲目切換，以及播放完成後的後續行為)
 @Observable
 final class PlayerViewModel {
     
-    var isPlaying: Bool = false                     // 目前是否正在播放中
-    var isPause: Bool = false                       // 目前是否為暫停狀態 => 用來區分「暫停」與「播放結束」兩種不同情境
-    var isFinished: Bool = false                    // 目前音軌是否已播放完成
-    var isAutoPlayNextTrack: Bool = false           // 是否在播放完成後自動播放下一首
-    var isLoop: Bool = false                        // 是否啟用單曲或清單循環播放邏輯
+    var tracks: [WWNormalizeAudioPlayer.TrackInformation] = []  // 目前可播放的音軌清單
     
-    var hasPrevious: Bool = true                    // 目前是否可切換到上一首
-    var hasNext: Bool = true                        // 目前是否可切換到下一首
+    var hasPrevious: Bool = true                                // 目前是否可切換到上一首
+    var hasNext: Bool = true                                    // 目前是否可切換到下一首
+    var currentTrackIndex: Int = 0                              // 目前選取的音軌索引
     
-    var tracks: [URL] = []                          // 目前載入的音軌清單
-    var currentTitle: String?                       // 目前顯示在畫面上的曲名提示文字
-    var currentTrackIndex: Int = 0                  // 目前選取的音軌索引
+    var isStop: Bool = true                                     // 表示播放器目前是否為停止狀態
+    var playerState: PlayerState = .none                        // 播放器目前的播放狀態
+    var functionState: FunctionState = .none                    // 播放器目前的功能狀態，例如循環播放或自動播放下一首
     
-    private let player = WWNormalizeAudioPlayer()   // 實際負責音訊播放的播放器實例
+    @ObservationIgnored
+    private let player = WWNormalizeAudioPlayer()               // 實際負責音訊播放的播放器實例
     
     /// 載入播放清單並初始化播放器狀態。
     /// - Parameter tracks: 要載入的音軌 URL 清單
     @MainActor
-    func load(tracks: [URL]) {
-        
-        self.tracks = tracks
+    func prepare(tracks: [URL]) {
         self.currentTrackIndex = !tracks.isEmpty ? 0 : -1
-        
-        player.configure(delegate: self, options: [.duckOthers])
-        currentTitle = try? trackHint(with: currentTrackIndex)
+        player.prepare(audioURLs: tracks, delegate: self, options: [.duckOthers])
+        checkTrackRange()
+    }
+    
+    /// 依目前音軌清單重新建立播放器內容
+    ///
+    /// 會將所有音軌網址提供給播放器進行預備，重設目前音軌索引為第一筆，並更新音軌切換狀態
+    func refreshTracks() {
+        player.prepare(audioURLs: tracks.compactMap(\.url), delegate: self, options: [.duckOthers])
+        currentTrackIndex = 0
         checkTrackRange()
     }
     
@@ -47,64 +50,55 @@ final class PlayerViewModel {
         player.volume = volume
     }
     
-    /// 開始播放目前選取的音軌 => 若目前只是暫停，則直接恢復播放，不重新載入音軌
+    /// 開始播放目前音軌
+    ///
+    /// 若播放器目前已處於播放狀態，則改為恢復播放，並直接返回。否則會先重設停止狀態、更新播放器狀態為 `.playing`，然後嘗試從目前音軌索引開始播放
     func play() async {
         
-        if isPause { resume(); return }
+        if playerState == .playing { resume(); return }
         
-        guard let track = tracks[safe: currentTrackIndex] else { return }
-        await player.play(with: [track], targetDB: -2.0, loop: false)
+        isStop = false
+        playerState = .playing
+        _ = try? await player.play(at: currentTrackIndex, targetDB: -2.0)
     }
     
-    /// 切換播放或暫停狀態 => 若目前正在播放則暫停，否則開始播放或從暫停狀態恢復
+    /// 切換播放狀態
+    ///
+    /// 當播放器目前正在播放時會停止播放；否則會啟動播放流程
     func togglePlay() {
-        Task { isPlaying ? pause() : await play() }
+        Task { playerState == .playing ? stop() : await play() }
     }
     
     /// 播放器停止播放
     func stop() {
+        isStop = true
         player.stop()
-        isPlaying = false
-        isPause = false
-        isFinished = true
-    }
-    
-    /// 暫停目前播放內容，並同步更新狀態旗標
-    func pause() {
-        player.pause()
-        isPlaying = false
-        isPause = true
+        playerState = .finished
     }
     
     /// 切換到上一首，並更新當前曲名與可切換狀態
     func previousTrack() {
-        
         currentTrackIndex -= 1
         checkTrackRange()
-        currentTitle = try? trackHint(with: currentTrackIndex)
     }
     
     /// 切換到下一首，並更新當前曲名與可切換狀態
     func nextTrack() {
-        
         currentTrackIndex += 1
         checkTrackRange()
-        currentTitle = try? trackHint(with: currentTrackIndex)
     }
     
     /// 將目前音軌重設為第一首
     func resetTrack() {
-        
         currentTrackIndex = 0
         checkTrackRange()
-        currentTitle = try? trackHint(with: currentTrackIndex)
     }
     
     /// 依索引產生音軌提示文字
     /// - Parameter index: 音軌索引
     /// - Returns: 格式化後的提示文字，例如 `[00:02] demo.m4a`
     /// - Throws: 取得音軌時間失敗時拋出錯誤
-    func trackHint(with index: Int?) throws -> String? {
+    func trackHint(with index: Int?) -> String? {
         
         guard let index = index,
               let track = tracks[safe: index]
@@ -112,7 +106,7 @@ final class PlayerViewModel {
             return nil
         }
         
-        return try trackHint(track)
+        return trackHint(track)
     }
     
     deinit {
@@ -123,25 +117,17 @@ final class PlayerViewModel {
 // MARK: - WWNormalizeAudioPlayer.Delegate
 extension PlayerViewModel: WWNormalizeAudioPlayer.Delegate {
     
-    /// 播放開始時同步更新播放狀態
-    func audioPlayer(_ player: WWNormalizeAudioPlayer, didStartTracks tracks: [URL], totalDuration: TimeInterval) {
-        isPlaying = true
-        isPause = false
-        isFinished = false
+    func audioPlayer(_ player: WWNormalizeAudioPlayer, prepare tracks: [WWNormalizeAudioPlayer.TrackInformation]) {
+        self.tracks = tracks
     }
     
-    /// 單一音軌播放完成時更新狀態，並依目前設定決定後續播放行為
-    func audioPlayer(_ player: WWNormalizeAudioPlayer, didFinishTrackIndex trackIndex: Int, callbackType: AVAudioPlayerNodeCompletionCallbackType) {
-        isPlaying = false
-        isPause = false
-        isFinished = true
-        handlePlaybackFinished()
+    func audioPlayer(_ player: WWNormalizeAudioPlayer, isPlaying currentTime: TimeInterval, trackTime: TimeInterval) {}
+    
+    func audioPlayer(_ player: WWNormalizeAudioPlayer, didFinished callbackType: AVAudioPlayerNodeCompletionCallbackType) {
+        playerState = .finished
+        handlePlaybackFinished(index: currentTrackIndex)
     }
     
-    /// 播放進度回呼，目前未使用，保留給進度條或播放時間顯示
-    func audioPlayer(_ player: WWNormalizeAudioPlayer, trackIndex: Int, currentTime: TimeInterval, trackTime: TimeInterval) {}
-    
-    /// 播放錯誤回呼，目前未使用，後續可接錯誤提示或除錯紀錄
     func audioPlayer(_ player: WWNormalizeAudioPlayer, error: Error) {}
 }
 
@@ -152,8 +138,7 @@ private extension PlayerViewModel {
     @MainActor
     func resume() {
         player.resume()
-        isPlaying = true
-        isPause = false
+        playerState = .playing
     }
     
     /// 檢查目前音軌索引是否在合法範圍內，並同步更新上一首 / 下一首按鈕是否可用
@@ -176,51 +161,46 @@ private extension PlayerViewModel {
         hasNext = currentTrackIndex < (tracks.count - 1)
     }
     
-    /// 將音軌 URL 轉成畫面顯示用提示文字
-    /// - Parameter track: 音軌 URL
-    /// - Returns: 格式化後的提示文字
-    /// - Throws: 取得音軌時間失敗時拋出錯誤
-    func trackHint(_ track: URL?) throws -> String? {
+    /// 產生指定音軌的提示字串。
+    ///
+    /// 當 `track` 為 `nil` 時回傳 `nil`；否則會將音軌時長格式化為 `mm:ss`，
+    /// 並組合成 `"[mm:ss] 檔名"` 的提示內容。
+    ///
+    /// - Parameter track: 要產生提示字串的音軌資訊。
+    /// - Returns: 格式化後的提示字串；若沒有提供音軌則回傳 `nil`。
+    /// - Throws: 此方法目前雖宣告為可拋出，但在現有實作中不會拋出錯誤。
+    func trackHint(_ track: WWNormalizeAudioPlayer.TrackInformation?) -> String? {
         
         guard let track = track else { return nil }
-        
-        let trackTime = try player.trackTime(with: track)
-        let time = trackTime.time(unitsStyle: .positional, allowedUnits: [.minute, .second], behavior: .pad) ?? "--:--"
-        let hint: String = "[\(time)] \(track.lastPathComponent)"
-        
+
+        let time = track.duration.time(unitsStyle: .positional, allowedUnits: [.minute, .second], behavior: .pad) ?? "--:--"
+        let hint: String = "[\(time)] \(track.url.lastPathComponent)"
+
         return hint
     }
     
     /// 處理播放完成後的行為 => 依照「連續播放」與「循環播放」組合，決定是否重播、播放下一首，或回到第一首
-    func handlePlaybackFinished() {
-        
-        guard isFinished else { return }
-        
+    func handlePlaybackFinished(index finishedIndex: Int) {
+
+        if isStop { return }
+
         Task {
-            
-            switch (isAutoPlayNextTrack, isLoop) {
-            
-            case (true, true):
-                
-                if currentTrackIndex < (tracks.count - 1) {
+            switch functionState {
+            case .autoNextTrack:
+                guard finishedIndex < (tracks.count - 1) else { return }
+                nextTrack()
+                togglePlay()
+            case .loopAndAutoNextTrack:
+                if finishedIndex < (tracks.count - 1) {
                     nextTrack()
                 } else {
                     resetTrack()
                 }
-                
                 togglePlay()
-                
-            case (true, false):
-                
-                guard currentTrackIndex < (tracks.count - 1) else { return }
-                
-                nextTrack()
+            case .loop:
                 togglePlay()
-                
-            case (false, true):
-                togglePlay()
-                
-            case (false, false): break
+            default:
+                break
             }
         }
     }
