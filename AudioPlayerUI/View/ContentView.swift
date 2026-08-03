@@ -41,7 +41,7 @@ struct ContentView: View {
                 }
                 .listStyle(.plain)
             }
-            .navigationTitle("播放器")
+            .navigationTitle("Audio Player")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom, content: {
                 VStack {
@@ -66,6 +66,9 @@ struct ContentView: View {
             }.task {
                 loadInitialSettings()
                 functionButtonSetting(state: viewModel.functionState)
+            }.onChange(of: viewModel.currentTrackIndex) { _, newValue in
+                let hint = viewModel.trackHint(with: newValue)
+                currentTitle = hint ?? ""
             }.onChange(of: isShuffle) { _, newValue in
                 sortTracks(isShuffle: newValue)
             }.onChange(of: viewModel.functionState) { _, newValue in
